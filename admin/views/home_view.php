@@ -200,16 +200,19 @@
                     <table class="table table-hover align-middle mb-0">
                         <thead class="bg-light">
                             <tr>
+                                <th class="ps-4">Queue</th>
                                 <th class="ps-4">Hospital</th>
                                 <th>Group</th>
                                 <th>Units</th>
+                                <th>Urgency</th>
                                 <th class="text-end pe-4">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php if (count($pending_request_rows) > 0): ?>
-                                <?php foreach ($pending_request_rows as $r): ?>
+                                <?php foreach ($pending_request_rows as $index => $r): ?>
                                     <tr>
+                                        <td class="ps-4 fw-bold text-dark">#<?php echo $index + 1; ?></td>
                                         <td class="ps-4 fw-bold text-dark">
                                             <?php echo htmlspecialchars($r['hospital_name']); ?>
                                         </td>
@@ -218,6 +221,12 @@
                                             </span>
                                         </td>
                                         <td class="fw-bold"><?php echo $r['amount']; ?></td>
+                                        <td>
+                                            <span
+                                                class="badge <?php echo ($r['urgency'] == 'urgent' || $r['urgency'] == 'critical') ? 'bg-danger' : 'bg-primary bg-opacity-10 text-primary'; ?>">
+                                                <?php echo ucfirst($r['urgency']); ?>
+                                            </span>
+                                        </td>
                                         <td class="text-end pe-4">
                                             <form action="dashboard.php?page=requests" method="POST" class="d-inline">
                                                 <input type="hidden" name="request_id" value="<?php echo $r['id']; ?>">
@@ -239,7 +248,7 @@
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="4" class="text-center py-3 text-muted">No pending requests.</td>
+                                    <td colspan="6" class="text-center py-3 text-muted">No pending requests.</td>
                                 </tr>
                             <?php endif; ?>
                         </tbody>

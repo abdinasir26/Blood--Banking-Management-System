@@ -48,7 +48,21 @@ if ($page == 'dashboard') {
 
     // 5. Pending items for quick approval
     $pending_donation_rows = $pdo->query("SELECT d.*, u.first_name, u.last_name, bg.group_name FROM donations d JOIN users u ON d.donor_id = u.id JOIN blood_groups bg ON d.blood_group_id = bg.id WHERE d.status = 'pending' ORDER BY d.created_at ASC LIMIT 5")->fetchAll();
-    $pending_request_rows = $pdo->query("SELECT r.*, u.first_name, u.last_name, bg.group_name FROM requests r JOIN users u ON r.requester_id = u.id JOIN blood_groups bg ON r.blood_group_id = bg.id WHERE r.status = 'pending' ORDER BY r.urgency DESC, r.created_at ASC LIMIT 5")->fetchAll();
+    $pending_request_rows = $pdo->query("
+        SELECT r.*, u.first_name, u.last_name, bg.group_name
+        FROM requests r
+        JOIN users u ON r.requester_id = u.id
+        JOIN blood_groups bg ON r.blood_group_id = bg.id
+        WHERE r.status = 'pending'
+        ORDER BY
+            CASE
+                WHEN r.urgency = 'critical' THEN 3
+                WHEN r.urgency = 'urgent' THEN 2
+                ELSE 1
+            END DESC,
+            r.created_at ASC
+        LIMIT 5
+    ")->fetchAll();
 }
 ?>
 <!DOCTYPE html>

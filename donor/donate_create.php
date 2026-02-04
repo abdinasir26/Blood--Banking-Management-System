@@ -7,15 +7,40 @@ requireLogin();
 
 // Fetch blood groups
 $groups = $pdo->query("SELECT * FROM blood_groups")->fetchAll();
+$donor_id = $_SESSION['user_id'];
+
+// Eligibility checks
+$pending_stmt = $pdo->prepare("SELECT COUNT(*) FROM donations WHERE donor_id = ? AND status = 'pending'");
+$pending_stmt->execute([$donor_id]);
+$has_pending_donation = ((int) $pending_stmt->fetchColumn()) > 0;
+
+$last_approved_stmt = $pdo->prepare("SELECT created_at FROM donations WHERE donor_id = ? AND status = 'approved' ORDER BY created_at DESC LIMIT 1");
+$last_approved_stmt->execute([$donor_id]);
+$last_approved_at = $last_approved_stmt->fetchColumn();
+
+$next_eligible_date = null;
+$cooldown_active = false;
+if ($last_approved_at) {
+    $next_eligible_dt = new DateTime($last_approved_at);
+    $next_eligible_dt->modify('+' . DONATION_COOLDOWN_DAYS . ' days');
+    $today = new DateTime('today');
+    if ($today < $next_eligible_dt) {
+        $cooldown_active = true;
+        $next_eligible_date = $next_eligible_dt->format('F d, Y');
+    }
+}
 
 // Handle Form
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $donor_id = $_SESSION['user_id'];
     $blood_group_id = $_POST['blood_group_id'];
     $amount = (int) $_POST['amount'];
     $disease = cleanInput($_POST['disease_notes']);
 
-    if ($amount > 0 && !empty($blood_group_id)) {
+    if ($has_pending_donation) {
+        $error = "You already have a pending donation request. Please wait for review before submitting another.";
+    } elseif ($cooldown_active) {
+        $error = "You are currently in the donation cooldown period. Next eligible date: " . $next_eligible_date . ".";
+    } elseif ($amount > 0 && !empty($blood_group_id)) {
         try {
             $stmt = $pdo->prepare("INSERT INTO donations (donor_id, blood_group_id, amount, disease_notes, status) VALUES (?, ?, ?, ?, 'pending')");
             $stmt->execute([$donor_id, $blood_group_id, $amount, $disease]);
@@ -67,6 +92,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <div class="alert alert-danger rounded-3"><?php echo $error; ?></div>
                     <?php endif; ?>
 
+                    <?php if ($has_pending_donation): ?>
+                        <div class="alert alert-warning rounded-3">
+                            You already have a pending donation request. A new request can be submitted after admin review.
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ($cooldown_active): ?>
+                        <div class="alert alert-info rounded-3">
+                            You are in a <?php echo (int) DONATION_COOLDOWN_DAYS; ?>-day cooldown period after your last approved
+                            donation.
+                            Next eligible date: <strong><?php echo htmlspecialchars($next_eligible_date); ?></strong>.
+                        </div>
+                    <?php endif; ?>
+
                     <form action="" method="POST">
                         <div class="row g-4">
                             <div class="col-md-6">
@@ -96,7 +135,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             </div>
 
                             <div class="col-12 mt-4">
-                                <button type="submit" class="btn btn-primary-custom w-100 py-3 fs-5">
+                                <button type="submit" class="btn btn-primary-custom w-100 py-3 fs-5"
+                                    <?php echo ($has_pending_donation || $cooldown_active) ? 'disabled' : ''; ?>>
                                     Submit Donation Request
                                 </button>
                             </div>
