@@ -98,7 +98,12 @@ if ($page == 'dashboard') {
                             <i class="fas fa-user-shield"></i>
                         </div>
                         <div>
-                            <div class="fw-bold small text-dark">Admin User</div>
+                            <div class="fw-bold small text-dark">
+                                <?php
+                                $admin_name = trim(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? ''));
+                                echo $admin_name !== '' ? htmlspecialchars($admin_name) : 'Admin User';
+                                ?>
+                            </div>
                             <div class="text-muted" style="font-size: 0.75rem;">Administrator</div>
                         </div>
                     </div>

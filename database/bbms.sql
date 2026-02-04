@@ -31,8 +31,8 @@ CREATE TABLE `users` (
 
 --
 -- Dumping data for table `users`
--- Admin: admin / Admin@123
--- Hash generated using password_hash('Admin@123', PASSWORD_BCRYPT)
+-- Admin: admin / 1234
+-- Hash generated using password_hash('1234', PASSWORD_BCRYPT)
 --
 
 INSERT INTO `users` (`first_name`, `last_name`, `sex`, `username`, `password_hash`, `phone`, `email`, `user_type`, `status`) VALUES

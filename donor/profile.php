@@ -6,6 +6,15 @@ require_once '../includes/functions.php';
 requireLogin();
 $uid = $_SESSION['user_id'];
 
+// Detect optional columns (for older DBs)
+$has_medical_info = false;
+try {
+    $col_check = $pdo->query("SHOW COLUMNS FROM users LIKE 'medical_info'");
+    $has_medical_info = $col_check->rowCount() > 0;
+} catch (Exception $e) {
+    $has_medical_info = false;
+}
+
 // Update Profile Logic
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $first_name = cleanInput($_POST['first_name']);
@@ -14,19 +23,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     // Check if password change
     $password_sql = "";
-    $params = [$first_name, $last_name, $medical_info, $uid];
+    $params = [$first_name, $last_name];
+
+    $medical_sql = "";
+    if ($has_medical_info) {
+        $medical_sql = ", medical_info = ?";
+        $params[] = $medical_info;
+    }
 
     if (!empty($_POST['new_password'])) {
         $password_hash = password_hash($_POST['new_password'], PASSWORD_DEFAULT);
         $password_sql = ", password_hash = ?";
         // Insert password hash before uid in params
-        array_splice($params, 3, 0, $password_hash);
+        array_splice($params, count($params), 0, $password_hash);
     }
 
-    $sql = "UPDATE users SET first_name = ?, last_name = ?, medical_info = ?" . $password_sql . " WHERE id = ?";
+    $sql = "UPDATE users SET first_name = ?, last_name = ?" . $medical_sql . $password_sql . " WHERE id = ?";
+    $params[] = $uid;
     $pdo->prepare($sql)->execute($params);
 
-    $_SESSION['first_name'] = $first_name; // Update session
+    $_SESSION['first_name'] = $first_name;
+    $_SESSION['last_name'] = $last_name;
     setFlash('success', 'Profile updated successfully.');
     redirect('donor/profile.php');
 }
@@ -101,7 +118,7 @@ $user = $user->fetch();
                                 <label class="form-label text-muted small fw-bold">MEDICAL INFO (BLOOD TYPE /
                                     ISSUES)</label>
                                 <textarea class="form-control" name="medical_info"
-                                    rows="3"><?php echo htmlspecialchars($user['medical_info']); ?></textarea>
+                                    rows="3"><?php echo htmlspecialchars($user['medical_info'] ?? ''); ?></textarea>
                             </div>
 
                             <div class="col-12 mt-4">

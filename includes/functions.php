@@ -74,11 +74,11 @@ function requireAdmin()
 }
 
 /**
- * Check session inactivity (Auto-logout after 5 minutes)
+ * Check session inactivity (Auto-logout after 20 minutes)
  */
 function checkSessionTimeout()
 {
-    $timeout_duration = 300; // 5 minutes in seconds
+    $timeout_duration = 1200; // 20 minutes in seconds
 
     if (isset($_SESSION['last_activity'])) {
         $duration = time() - $_SESSION['last_activity'];
