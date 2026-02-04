@@ -54,6 +54,7 @@ $requests = $requests->fetchAll();
                             <th>Urgency</th>
                             <th>Status</th>
                             <th>Date</th>
+                            <th class="text-end pe-4">Certificate</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -81,11 +82,21 @@ $requests = $requests->fetchAll();
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-muted"><?php echo date('M d, Y', strtotime($r['created_at'])); ?></td>
+                                    <td class="text-end pe-4">
+                                        <?php if ($r['status'] == 'approved'): ?>
+                                            <a href="request_certificate.php?id=<?php echo (int) $r['id']; ?>"
+                                                class="btn btn-sm btn-outline-primary" target="_blank">
+                                                Download
+                                            </a>
+                                        <?php else: ?>
+                                            <span class="text-muted small">Available after approval</span>
+                                        <?php endif; ?>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">No requests found.</td>
+                                <td colspan="7" class="text-center py-5 text-muted">No requests found.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>

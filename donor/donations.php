@@ -53,6 +53,7 @@ $donations = $donations->fetchAll();
                             <th>Units</th>
                             <th>Status</th>
                             <th>Date</th>
+                            <th class="text-end pe-4">Certificate</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -74,11 +75,21 @@ $donations = $donations->fetchAll();
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-muted"><?php echo date('M d, Y', strtotime($d['created_at'])); ?></td>
+                                    <td class="text-end pe-4">
+                                        <?php if ($d['status'] == 'approved'): ?>
+                                            <a href="donation_certificate.php?id=<?php echo (int) $d['id']; ?>"
+                                                class="btn btn-sm btn-outline-primary" target="_blank">
+                                                Download
+                                            </a>
+                                        <?php else: ?>
+                                            <span class="text-muted small">Available after approval</span>
+                                        <?php endif; ?>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="5" class="text-center py-5 text-muted">You haven't made any donations yet.</td>
+                                <td colspan="6" class="text-center py-5 text-muted">You haven't made any donations yet.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>

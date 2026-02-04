@@ -1,4 +1,10 @@
 <div class="sidebar">
+    <?php
+    $pending_request_count = 0;
+    if (isAdmin() && isset($pdo)) {
+        $pending_request_count = (int) $pdo->query("SELECT COUNT(*) FROM requests WHERE status = 'pending'")->fetchColumn();
+    }
+    ?>
     <div class="brand-logo">
         <i class="fas fa-heartbeat"></i> BBMS
     </div>
@@ -27,7 +33,10 @@
             <li class="nav-item">
                 <a class="nav-link <?php echo (isset($_GET['page']) && $_GET['page'] == 'requests') ? 'active' : ''; ?>"
                     href="<?php echo BASE_URL; ?>admin/dashboard.php?page=requests">
-                    <i class="fas fa-procedures"></i> Requests
+                    <span><i class="fas fa-procedures"></i> Requests</span>
+                    <?php if ($pending_request_count > 0): ?>
+                        <span class="menu-badge"><?php echo $pending_request_count; ?></span>
+                    <?php endif; ?>
                 </a>
             </li>
 
