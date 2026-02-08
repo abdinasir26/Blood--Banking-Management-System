@@ -10,17 +10,42 @@ $groups = $pdo->query("SELECT * FROM blood_groups")->fetchAll();
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $requester_id = $_SESSION['user_id'];
-    $blood_group_id = $_POST['blood_group_id'];
+    $blood_group_id = (int) ($_POST['blood_group_id'] ?? 0);
     $amount = (int) $_POST['amount'];
     $hospital = cleanInput($_POST['hospital_name']);
     $urgency = $_POST['urgency'];
 
     if ($amount > 0 && !empty($blood_group_id) && !empty($hospital)) {
         try {
-            $stmt = $pdo->prepare("INSERT INTO requests (requester_id, blood_group_id, amount, hospital_name, urgency, status) VALUES (?, ?, ?, ?, ?, 'pending')");
-            $stmt->execute([$requester_id, $blood_group_id, $amount, $hospital, $urgency]);
-            setFlash('success', 'Blood request submitted successfully.');
-            redirect('donor/dashboard.php');
+            // Check stock so the requester gets immediate feedback.
+            $stockStmt = $pdo->prepare("
+                SELECT
+                    COALESCE(bs.available_units, 0) AS available_units,
+                    bg.group_name
+                FROM blood_groups bg
+                LEFT JOIN blood_store bs ON bs.blood_group_id = bg.id
+                WHERE bg.id = ?
+                LIMIT 1
+            ");
+            $stockStmt->execute([$blood_group_id]);
+            $stockRow = $stockStmt->fetch();
+
+            $available_units = $stockRow ? (int) $stockRow['available_units'] : 0;
+            $group_name = $stockRow && isset($stockRow['group_name']) ? $stockRow['group_name'] : 'Selected group';
+
+            if ($available_units < $amount) {
+                setFlash(
+                    'danger',
+                    "Not enough units available for " . htmlspecialchars($group_name) .
+                        ". Available: " . $available_units . " unit(s). Requested: " . $amount . " unit(s)."
+                );
+                redirect('donor/request_create.php');
+            } else {
+                $stmt = $pdo->prepare("INSERT INTO requests (requester_id, blood_group_id, amount, hospital_name, urgency, status) VALUES (?, ?, ?, ?, ?, 'pending')");
+                $stmt->execute([$requester_id, $blood_group_id, $amount, $hospital, $urgency]);
+                setFlash('success', 'Blood request submitted successfully.');
+                redirect('donor/dashboard.php');
+            }
         } catch (Exception $e) {
             $error = "Error: " . $e->getMessage();
         }

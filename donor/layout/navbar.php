@@ -39,6 +39,11 @@
             </ul>
 
             <div class="d-flex align-items-center gap-3">
+                <?php if (!empty($_SESSION['profile_picture'])): ?>
+                    <img src="<?php echo '../' . htmlspecialchars($_SESSION['profile_picture']); ?>" alt="Profile picture"
+                        class="rounded-circle d-none d-lg-inline"
+                        style="width: 34px; height: 34px; object-fit: cover; border: 2px solid rgba(0,0,0,0.06);">
+                <?php endif; ?>
                 <span class="d-none d-lg-block fw-bold text-muted small me-2">
                     Hello,
                     <?php echo isset($_SESSION['first_name']) ? htmlspecialchars($_SESSION['first_name']) : 'Friend'; ?>
@@ -50,3 +55,20 @@
         </div>
     </div>
 </nav>
+
+<?php
+// Show flash messages on donor pages (success/danger/warning/info).
+if (function_exists('getFlash')) {
+    $flash = getFlash();
+    if ($flash):
+        ?>
+        <div class="container mt-3">
+            <div class="alert alert-<?php echo htmlspecialchars($flash['type']); ?> alert-dismissible fade show" role="alert">
+                <?php echo $flash['message']; ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+    <?php
+    endif;
+}
+?>

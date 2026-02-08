@@ -108,9 +108,16 @@ if ($page == 'dashboard') {
                         <span class="badge-dot"></span>
                     </div>
                     <div class="d-flex align-items-center gap-2">
-                        <div class="icon-btn bg-dark text-white">
-                            <i class="fas fa-user-shield"></i>
-                        </div>
+                        <?php if (!empty($_SESSION['profile_picture'])): ?>
+                            <div class="icon-btn p-0" style="overflow: hidden;">
+                                <img src="<?php echo '../' . htmlspecialchars($_SESSION['profile_picture']); ?>" alt="Profile picture"
+                                    style="width: 36px; height: 36px; object-fit: cover;">
+                            </div>
+                        <?php else: ?>
+                            <div class="icon-btn bg-dark text-white">
+                                <i class="fas fa-user-shield"></i>
+                            </div>
+                        <?php endif; ?>
                         <div>
                             <div class="fw-bold small text-dark">
                                 <?php
@@ -123,6 +130,19 @@ if ($page == 'dashboard') {
                     </div>
                 </div>
             </div>
+
+            <?php
+            // Flash messages (success/danger/warning/info) for admin actions.
+            $flash = getFlash();
+            if ($flash):
+                ?>
+                <div class="container-fluid mt-3">
+                    <div class="alert alert-<?php echo htmlspecialchars($flash['type']); ?> alert-dismissible fade show" role="alert">
+                        <?php echo $flash['message']; ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                </div>
+            <?php endif; ?>
 
             <?php
             // Dynamic View Loading
@@ -147,6 +167,9 @@ if ($page == 'dashboard') {
                     break;
                 case 'search':
                     require_once 'views/search_view.php';
+                    break;
+                case 'profile':
+                    require_once 'views/profile_view.php';
                     break;
                 case 'dashboard':
                 default:

@@ -6,13 +6,26 @@ require_once '../includes/functions.php';
 requireLogin();
 $uid = $_SESSION['user_id'];
 
+// Load current user (needed for showing/deleting old profile picture)
+$userStmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
+$userStmt->execute([$uid]);
+$user = $userStmt->fetch();
+
 // Detect optional columns (for older DBs)
 $has_medical_info = false;
+// profile_picture exists in current schema, but keep this for older DBs.
+$has_profile_picture = false;
 try {
     $col_check = $pdo->query("SHOW COLUMNS FROM users LIKE 'medical_info'");
     $has_medical_info = $col_check->rowCount() > 0;
 } catch (Exception $e) {
     $has_medical_info = false;
+}
+try {
+    $col_check = $pdo->query("SHOW COLUMNS FROM users LIKE 'profile_picture'");
+    $has_profile_picture = $col_check->rowCount() > 0;
+} catch (Exception $e) {
+    $has_profile_picture = false;
 }
 
 // Update Profile Logic
@@ -21,36 +34,86 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $last_name = cleanInput($_POST['last_name']);
     $medical_info = cleanInput($_POST['medical_info']);
 
-    // Check if password change
-    $password_sql = "";
+    $fields = ["first_name = ?", "last_name = ?"];
     $params = [$first_name, $last_name];
+    $session_profile_picture = $_SESSION['profile_picture'] ?? ($user['profile_picture'] ?? null);
 
-    $medical_sql = "";
     if ($has_medical_info) {
-        $medical_sql = ", medical_info = ?";
+        $fields[] = "medical_info = ?";
         $params[] = $medical_info;
     }
 
-    if (!empty($_POST['new_password'])) {
-        $password_hash = password_hash($_POST['new_password'], PASSWORD_DEFAULT);
-        $password_sql = ", password_hash = ?";
-        // Insert password hash before uid in params
-        array_splice($params, count($params), 0, $password_hash);
+    // Optional profile picture upload
+    if ($has_profile_picture && isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] !== UPLOAD_ERR_NO_FILE) {
+        $f = $_FILES['profile_picture'];
+        if ($f['error'] !== UPLOAD_ERR_OK) {
+            $error = "Failed to upload profile picture.";
+        } elseif ($f['size'] > 2 * 1024 * 1024) {
+            $error = "Profile picture must be 2MB or smaller.";
+        } else {
+            $imgInfo = @getimagesize($f['tmp_name']);
+            $allowed = [
+                'image/jpeg' => 'jpg',
+                'image/png' => 'png',
+                'image/webp' => 'webp',
+                'image/gif' => 'gif',
+            ];
+            $mime = $imgInfo['mime'] ?? '';
+            if (!$imgInfo || !isset($allowed[$mime])) {
+                $error = "Please upload a valid image (JPG/PNG/WEBP/GIF).";
+            } else {
+                $ext = $allowed[$mime];
+                $root = dirname(__DIR__);
+                $relDir = "uploads/profile_pictures";
+                $absDir = $root . DIRECTORY_SEPARATOR . "uploads" . DIRECTORY_SEPARATOR . "profile_pictures";
+
+                if (!is_dir($absDir)) {
+                    @mkdir($absDir, 0755, true);
+                }
+
+                $name = "u" . $uid . "_" . date("Ymd_His") . "_" . bin2hex(random_bytes(6)) . "." . $ext;
+                $absPath = $absDir . DIRECTORY_SEPARATOR . $name;
+                $relPath = $relDir . "/" . $name;
+
+                if (!move_uploaded_file($f['tmp_name'], $absPath)) {
+                    $error = "Could not save uploaded profile picture.";
+                } else {
+                    // Delete old uploaded image (only if it looks like one of ours)
+                    $old = $user['profile_picture'] ?? '';
+                    if ($old && str_starts_with($old, $relDir . "/")) {
+                        $oldAbs = $root . DIRECTORY_SEPARATOR . str_replace("/", DIRECTORY_SEPARATOR, $old);
+                        if (is_file($oldAbs)) {
+                            @unlink($oldAbs);
+                        }
+                    }
+
+                    $fields[] = "profile_picture = ?";
+                    $params[] = $relPath;
+                    $session_profile_picture = $relPath;
+                }
+            }
+        }
     }
 
-    $sql = "UPDATE users SET first_name = ?, last_name = ?" . $medical_sql . $password_sql . " WHERE id = ?";
-    $params[] = $uid;
-    $pdo->prepare($sql)->execute($params);
+    // Optional password change
+    if (!empty($_POST['new_password'])) {
+        $password_hash = password_hash($_POST['new_password'], PASSWORD_DEFAULT);
+        $fields[] = "password_hash = ?";
+        $params[] = $password_hash;
+    }
 
-    $_SESSION['first_name'] = $first_name;
-    $_SESSION['last_name'] = $last_name;
-    setFlash('success', 'Profile updated successfully.');
-    redirect('donor/profile.php');
+    if (!isset($error)) {
+        $sql = "UPDATE users SET " . implode(", ", $fields) . " WHERE id = ?";
+        $params[] = $uid;
+        $pdo->prepare($sql)->execute($params);
+
+        $_SESSION['first_name'] = $first_name;
+        $_SESSION['last_name'] = $last_name;
+        $_SESSION['profile_picture'] = $session_profile_picture;
+        setFlash('success', 'Profile updated successfully.');
+        redirect('donor/profile.php');
+    }
 }
-
-$user = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-$user->execute([$uid]);
-$user = $user->fetch();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -78,10 +141,16 @@ $user = $user->fetch();
             <div class="col-md-4">
                 <div class="form-card text-center h-100">
                     <div class="position-relative d-inline-block mb-3">
-                        <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto"
-                            style="width: 100px; height: 100px; font-size: 2.5rem; background: var(--primary-red) !important;">
-                            <?php echo strtoupper(substr($user['first_name'], 0, 1)); ?>
-                        </div>
+                        <?php if (!empty($user['profile_picture'])): ?>
+                            <img src="<?php echo '../' . htmlspecialchars($user['profile_picture']); ?>"
+                                alt="Profile picture" class="rounded-circle"
+                                style="width: 100px; height: 100px; object-fit: cover; border: 3px solid rgba(0,0,0,0.06);">
+                        <?php else: ?>
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center mx-auto"
+                                style="width: 100px; height: 100px; font-size: 2.5rem; background: var(--primary-red) !important;">
+                                <?php echo strtoupper(substr($user['first_name'], 0, 1)); ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
                     <h4 class="fw-bold"><?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?>
                     </h4>
@@ -101,7 +170,11 @@ $user = $user->fetch();
                 <div class="form-card h-100">
                     <h3 class="fw-bold mb-4">Edit Profile</h3>
 
-                    <form action="" method="POST">
+                    <?php if (isset($error)): ?>
+                        <div class="alert alert-danger rounded-3"><?php echo $error; ?></div>
+                    <?php endif; ?>
+
+                    <form action="" method="POST" enctype="multipart/form-data">
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label text-muted small fw-bold">FIRST NAME</label>
@@ -119,6 +192,12 @@ $user = $user->fetch();
                                     ISSUES)</label>
                                 <textarea class="form-control" name="medical_info"
                                     rows="3"><?php echo htmlspecialchars($user['medical_info'] ?? ''); ?></textarea>
+                            </div>
+
+                            <div class="col-12 mt-4">
+                                <label class="form-label text-muted small fw-bold">PROFILE PICTURE</label>
+                                <input type="file" class="form-control" name="profile_picture" accept="image/*">
+                                <div class="form-text text-muted">JPG/PNG/WEBP/GIF, max 2MB.</div>
                             </div>
 
                             <div class="col-12 mt-4">

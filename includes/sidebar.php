@@ -59,6 +59,14 @@
                     <i class="fas fa-chart-line"></i> Reports
                 </a>
             </li>
+
+            <div class="nav-label mt-3">Account</div>
+            <li class="nav-item">
+                <a class="nav-link <?php echo (isset($_GET['page']) && $_GET['page'] == 'profile') ? 'active' : ''; ?>"
+                    href="<?php echo BASE_URL; ?>admin/dashboard.php?page=profile">
+                    <i class="fas fa-user-circle"></i> Profile
+                </a>
+            </li>
         <?php else: ?>
             <!-- Donor Sidebar -->
             <li class="nav-item">

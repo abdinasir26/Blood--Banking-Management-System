@@ -71,10 +71,16 @@ $users = $pdo->query("SELECT * FROM users ORDER BY created_at DESC")->fetchAll()
                         <tr>
                             <td class="ps-4">
                                 <div class="d-flex align-items-center">
-                                    <div class="avatar me-3 bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center"
-                                        style="width: 40px; height: 40px;">
-                                        <?php echo strtoupper(substr($user['first_name'], 0, 1)); ?>
-                                    </div>
+                                    <?php if (!empty($user['profile_picture'])): ?>
+                                        <img src="<?php echo '../' . htmlspecialchars($user['profile_picture']); ?>"
+                                            alt="Profile picture" class="me-3 rounded-circle"
+                                            style="width: 40px; height: 40px; object-fit: cover;">
+                                    <?php else: ?>
+                                        <div class="avatar me-3 bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center"
+                                            style="width: 40px; height: 40px;">
+                                            <?php echo strtoupper(substr($user['first_name'], 0, 1)); ?>
+                                        </div>
+                                    <?php endif; ?>
                                     <div>
                                         <div class="fw-bold text-dark">
                                             <?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?>

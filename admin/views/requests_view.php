@@ -47,7 +47,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['request_action'])) {
                     setFlash('danger', 'Error processing request.');
                 }
             } else {
-                setFlash('danger', 'Insufficient stock to approve this request.');
+                // Provide a clearer message for admins: available vs requested.
+                $stockInfoStmt = $pdo->prepare("
+                    SELECT
+                        COALESCE(bs.available_units, 0) AS available_units,
+                        bg.group_name
+                    FROM blood_groups bg
+                    LEFT JOIN blood_store bs ON bs.blood_group_id = bg.id
+                    WHERE bg.id = ?
+                    LIMIT 1
+                ");
+                $stockInfoStmt->execute([$req['blood_group_id']]);
+                $stockInfo = $stockInfoStmt->fetch();
+
+                $available_units = $stockInfo ? (int) $stockInfo['available_units'] : 0;
+                $group_name = $stockInfo && isset($stockInfo['group_name']) ? $stockInfo['group_name'] : 'Selected group';
+
+                setFlash(
+                    'danger',
+                    "Not enough units available for " . htmlspecialchars($group_name) .
+                        ". Available: " . $available_units . " unit(s). Requested: " . (int) $req['amount'] . " unit(s)."
+                );
             }
         } elseif ($action == 'reject') {
             $pdo->prepare("UPDATE requests SET status = 'rejected' WHERE id = ?")->execute([$request_id]);
